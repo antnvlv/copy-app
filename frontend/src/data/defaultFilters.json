@@ -1,0 +1,5 @@
+[
+  { "id": "default-1", "name": "Example 1", "text": "text 1" },
+  { "id": "default-2", "name": "Example 2", "text": "text 2" },
+  { "id": "default-3", "name": "Example 3", "text": "text 3" }
+]
