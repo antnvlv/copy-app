@@ -1,30 +1,125 @@
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import SearchBar from "../components/SearchBar";
 import AddFilterForm from "../components/AddFilterForm";
 import FilterItem from "../components/FilterItem";
 
-import { useFilters } from "../store/useFilters";
-import { useClickOutside } from "../hooks/useClickOutside";
-import { useRef } from "react";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import {
+    SortableContext,
+    arrayMove,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
-function FiltersPage() {
-    const store = useFilters();
+function FiltersPage({ filters, setFilters }) {
+    const [editingId, setEditingId] = useState(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+    const [editName, setEditName] = useState("");
+    const [editText, setEditText] = useState("");
+
+    const [name, setName] = useState("");
+    const [text, setText] = useState("");
+
+    const [search, setSearch] = useState("");
+    const [copied, setCopied] = useState(false);
+    const [copiedName, setCopiedName] = useState("");
+    const [lastCopiedId, setLastCopiedId] = useState(null);
+
+    const [showForm, setShowForm] = useState(false);
 
     const formRef = useRef(null);
     const toggleRef = useRef(null);
 
-    useClickOutside([formRef, toggleRef], () => {
-        store.setShowForm(false);
-    }, store.showForm);
+    useEffect(() => {
+        function handleClick(e) {
+            if (!showForm) return;
+
+            if (
+                formRef.current?.contains(e.target) ||
+                toggleRef.current?.contains(e.target)
+            ) return;
+
+            setShowForm(false);
+        }
+
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
+    }, [showForm]);
+
+    function addFilter() {
+        if (!name.trim() || !text.trim()) return;
+
+        setFilters((prev) => [
+            ...prev,
+            {
+                id: crypto.randomUUID(),
+                name: name.trim(),
+                text: text.trim(),
+            },
+        ]);
+
+        setName("");
+        setText("");
+    }
+
+    function deleteFilter(id) {
+        setFilters((prev) => prev.filter((f) => f.id !== id));
+        setConfirmDeleteId(null);
+    }
+
+    function startEdit(item) {
+        setEditingId(item.id);
+        setEditName(item.name);
+        setEditText(item.text);
+    }
+
+    function saveEdit(id) {
+        setFilters((prev) =>
+            prev.map((f) =>
+                f.id === id
+                    ? { ...f, name: editName.trim(), text: editText.trim() }
+                    : f
+            )
+        );
+
+        setEditingId(null);
+    }
+
+    function handleCopy(text, id, name) {
+        navigator.clipboard.writeText(text);
+
+        setCopied(true);
+        setLastCopiedId(id);
+        setCopiedName(name);
+
+        setTimeout(() => setCopied(false), 1200);
+    }
+
+    const filtered = useMemo(() => {
+        const q = search.toLowerCase();
+        return filters.filter((f) =>
+            f.name.toLowerCase().includes(q)
+        );
+    }, [filters, search]);
+
+    function handleDragEnd(event) {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        setFilters((items) => {
+            const oldIndex = items.findIndex((i) => i.id === active.id);
+            const newIndex = items.findIndex((i) => i.id === over.id);
+
+            return arrayMove(items, oldIndex, newIndex);
+        });
+    }
 
     return (
         <div className="text-gray-200">
 
-            {store.copied && (
-                <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-gray-900/90 px-3 py-1.5 rounded-md z-50">
-                    Copied: {store.copiedName}
+            {copied && (
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-gray-900/90 border border-gray-700 px-3 py-1.5 rounded-md text-sm z-50">
+                    Copied: <span className="text-white">{copiedName}</span>
                 </div>
             )}
 
@@ -32,21 +127,21 @@ function FiltersPage() {
                 <div className="max-w-2xl mx-auto px-4 py-1">
 
                     <SearchBar
-                        value={store.search}
-                        onChange={store.setSearch}
-                        onToggleAdd={() => store.setShowForm(v => !v)}
+                        value={search}
+                        onChange={setSearch}
+                        onToggleAdd={() => setShowForm((v) => !v)}
                         toggleRef={toggleRef}
                     />
 
-                    {store.showForm && (
+                    {showForm && (
                         <div ref={formRef}>
                             <AddFilterForm
-                                name={store.name}
-                                text={store.text}
-                                setName={store.setName}
-                                setText={store.setText}
-                                addFilter={store.addFilter}
-                                close={() => store.setShowForm(false)}
+                                name={name}
+                                text={text}
+                                setName={setName}
+                                setText={setText}
+                                addFilter={addFilter}
+                                close={() => setShowForm(false)}
                             />
                         </div>
                     )}
@@ -55,43 +150,42 @@ function FiltersPage() {
                 <div className="h-px bg-slate-800" />
             </div>
 
-            <div className="max-w-2xl mx-auto px-4 pt-3 pb-6">
+            <div className="max-w-2xl mx-auto px-4 pb-6 pt-3">
 
-                {!store.filtered.length ? (
+                {filtered.length === 0 ? (
                     <div className="text-center text-gray-500 py-10">
-                        No filters
+                        No filters found
                     </div>
                 ) : (
-                    <DndContext onDragEnd={store.handleDragEnd} collisionDetection={closestCenter}>
+                    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                         <SortableContext
-                            items={store.filtered.map(f => f.id)}
+                            items={filtered.map((f) => f.id)}
                             strategy={verticalListSortingStrategy}
                         >
                             <div className="flex flex-col gap-2">
-                                {store.filtered.map(item => (
+                                {filtered.map((item) => (
                                     <FilterItem
                                         key={item.id}
                                         item={item}
-                                        isEditing={store.editingId === item.id}
-                                        isConfirming={store.confirmDeleteId === item.id}
-                                        isLastCopied={store.lastCopiedId === item.id}
-                                        startEdit={store.startEdit}
-                                        saveEdit={store.saveEdit}
-                                        deleteFilter={store.deleteFilter}
-                                        handleCopy={store.handleCopy}
-                                        setConfirmDeleteId={store.setConfirmDeleteId}
-                                        setEditingId={store.setEditingId}
-                                        editName={store.editName}
-                                        editText={store.editText}
-                                        setEditName={store.setEditName}
-                                        setEditText={store.setEditText}
+                                        isEditing={editingId === item.id}
+                                        isConfirming={confirmDeleteId === item.id}
+                                        isLastCopied={lastCopiedId === item.id}
+                                        startEdit={startEdit}
+                                        saveEdit={saveEdit}
+                                        deleteFilter={deleteFilter}
+                                        handleCopy={handleCopy}
+                                        setConfirmDeleteId={setConfirmDeleteId}
+                                        setEditingId={setEditingId}
+                                        editName={editName}
+                                        editText={editText}
+                                        setEditName={setEditName}
+                                        setEditText={setEditText}
                                     />
                                 ))}
                             </div>
                         </SortableContext>
                     </DndContext>
                 )}
-
             </div>
         </div>
     );

@@ -1,11 +1,9 @@
 import { Copy, Pencil, Trash2, Check, X, GripVertical } from "lucide-react";
-
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 function FilterItem({
                         item,
-                        index,
                         isEditing,
                         isConfirming,
                         isLastCopied,
@@ -39,7 +37,7 @@ function FilterItem({
         <div
             ref={setNodeRef}
             style={style}
-            className={`group flex items-center justify-between p-3 rounded-lg border transition
+            className={`group flex items-center justify-between p-3 rounded-lg border transition overflow-hidden
             ${
                 isLastCopied
                     ? "border-emerald-500 bg-emerald-900/20 ring-1 ring-emerald-500"
@@ -51,16 +49,16 @@ function FilterItem({
                     <input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="px-2 py-1 rounded bg-slate-800 border border-slate-600"
+                        className="flex-1 min-w-0 px-2 py-1 rounded bg-slate-800 border border-slate-600 mr-2"
                     />
 
                     <input
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
-                        className="px-2 py-1 rounded bg-slate-800 border border-slate-600"
+                        className="flex-1 min-w-0 px-2 py-1 rounded bg-slate-800 border border-slate-600 mr-2"
                     />
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                         <button
                             onClick={() => saveEdit(item.id)}
                             className="p-2 rounded bg-green-700 hover:bg-green-600"
@@ -78,20 +76,22 @@ function FilterItem({
                 </>
             ) : (
                 <>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
 
                         <div
                             {...attributes}
                             {...listeners}
-                            className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-white"
+                            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-500 hover:text-white"
                         >
                             <GripVertical size={16} />
                         </div>
 
-                        <span className="font-medium">{item.name}</span>
+                        <span className="font-medium truncate">
+                            {item.name}
+                        </span>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                         {isConfirming ? (
                             <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded">
                                 <span className="text-xs text-gray-400">Delete?</span>
